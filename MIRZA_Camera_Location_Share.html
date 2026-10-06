@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MIRZA — Camera & Location Share</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#05080d;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;padding:20px}
+.card{width:min(620px,96vw);padding:24px;border:1px solid #ffffff18;border-radius:24px;background:#0d151c;box-shadow:0 25px 80px #000}
+h1{text-align:center;color:#00e676;letter-spacing:3px;margin:0}.sub{text-align:center;color:#94a4ad;margin:8px 0 20px}
+video{width:100%;aspect-ratio:16/10;object-fit:cover;background:#020405;border-radius:16px;display:none;transform:scaleX(-1)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+button{padding:14px;border:0;border-radius:12px;font-weight:bold;cursor:pointer;background:#00e676;color:#00140b}
+button.secondary{background:#1b2730;color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.status,.location{margin-top:14px;padding:13px;border-radius:12px;background:#ffffff08;color:#b8c4ca;line-height:1.5}
+.preview{display:none;margin-top:14px;width:100%;border-radius:16px}
+.note{margin-top:15px;font-size:12px;color:#718089;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>MIRZA</h1>
+<div class="sub">Camera & Location Share</div>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" style="display:none"></canvas>
+<img id="preview" class="preview" alt="Captured photo preview">
+
+<div class="actions">
+<button id="cameraBtn" onclick="startCamera()">ALLOW CAMERA</button>
+<button class="secondary" onclick="getLocation()">ALLOW LOCATION</button>
+<button onclick="takePhoto()" id="photoBtn" disabled>TAKE PHOTO</button>
+<button class="secondary" onclick="stopCamera()">STOP CAMERA</button>
+</div>
+
+<div class="status" id="status">Nothing has been accessed yet. Choose an action above.</div>
+<div class="location" id="location">Location: Not shared</div>
+<div class="note">
+Your browser will show its normal permission prompt. A photo is captured only when you press “TAKE PHOTO”.
+This demo does not bypass permissions or secretly collect camera/location data.
+</div>
+</div>
+
+<script>
+let stream=null, coords=null;
+const video=document.getElementById('video');
+const canvas=document.getElementById('canvas');
+const preview=document.getElementById('preview');
+const statusEl=document.getElementById('status');
+const locationEl=document.getElementById('location');
+const photoBtn=document.getElementById('photoBtn');
+
+async function startCamera(){
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+  video.srcObject=stream;
+  video.style.display='block';
+  photoBtn.disabled=false;
+  statusEl.textContent='Camera permission granted. You can now take a photo.';
+ }catch(e){
+  statusEl.textContent='Camera permission was denied or the camera is unavailable.';
+ }
+}
+
+function stopCamera(){
+ if(stream) stream.getTracks().forEach(t=>t.stop());
+ stream=null; video.srcObject=null; video.style.display='none';
+ photoBtn.disabled=true;
+ statusEl.textContent='Camera stopped.';
+}
+
+function getLocation(){
+ if(!navigator.geolocation){
+  locationEl.textContent='Location: Geolocation is not supported.';
+  return;
+ }
+ locationEl.textContent='Location: Requesting permission…';
+ navigator.geolocation.getCurrentPosition(
+  p=>{
+   coords={lat:p.coords.latitude,lon:p.coords.longitude,accuracy:p.coords.accuracy};
+   locationEl.textContent=`Location: ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)} (±${Math.round(coords.accuracy)}m)`;
+  },
+  ()=>locationEl.textContent='Location: Permission denied or unavailable.',
+  {enableHighAccuracy:true,timeout:10000}
+ );
+}
+
+function takePhoto(){
+ if(!stream) return;
+ canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+ const ctx=canvas.getContext('2d');
+ ctx.save(); ctx.translate(canvas.width,0); ctx.scale(-1,1);
+ ctx.drawImage(video,0,0,canvas.width,canvas.height); ctx.restore();
+ preview.src=canvas.toDataURL('image/jpeg',0.9);
+ preview.style.display='block';
+ statusEl.textContent='Photo captured locally. No upload is performed by this demo.';
+}
+</script>
+</body>
+</html>
